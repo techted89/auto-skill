@@ -1,16 +1,20 @@
-"""
-Embedding utilities for auto-skill plugin
-
-This module provides utilities for converting text to embeddings
-for use in ChromaDB vector search. Uses sentence-transformers
-ALL-MiniLM-L6-v2 model for generating embeddings.
-"""
+/**
+ * Embedding utilities for auto-skill plugin
+ *
+ * This module provides utilities for converting text to embeddings
+ * for use in ChromaDB vector search. Uses sentence-transformers
+ * ALL-MiniLM-L6-v2 model for generating embeddings.
+ */
 
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import util from 'util';
 import { tmpdir } from 'os';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const execPromise = util.promisify(exec);
 
@@ -125,7 +129,7 @@ export function getEmbeddingDimension(modelName = DEFAULT_MODEL_NAME) {
     'sentence-transformers/paraphrase-MiniLM-L3-v2': 384,
     'sentence-transformers/distilbert-base-nli-mean-tokens': 768,
     'sentence-transformers/multi-qa-MiniLM-L6-cos-v1': 384,
-  'sentence-transformers/distilbert-base-nli-stsb-large-steps': 768,
+    'sentence-transformers/distilbert-base-nli-stsb-large-steps': 768,
   };
 
   return modelDimensions[modelName] || 384;

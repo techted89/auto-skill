@@ -7,6 +7,7 @@ import { ProactiveInjector } from './proactive-injector.js';
 import { SkillsetIndex } from './skillset-index.js';
 import { AutoDiscovery } from './auto-discovery.js';
 import { ContextInjector } from './context-injector.js';
+import { join } from 'path';
 
 export class EventHooks {
   constructor(config = {}) {
@@ -104,4 +105,30 @@ export class EventHooks {
     context._skillSuggestions = suggestions;
     return suggestions;
   }
+}
+
+export function createToolEventHandlers(injector, opencode) {
+  return {
+    onBeforeExecute: async (context) => {
+      const hooks = new EventHooks();
+      return hooks.beforeExecute(context);
+    },
+    onAfterExecute: async (context) => {
+      const hooks = new EventHooks();
+      return hooks.afterExecute(context);
+    },
+  };
+}
+
+export function createChatEventHandlers(injector, opencode) {
+  return {
+    onMessage: async (message, context) => {
+      const hooks = new EventHooks();
+      return hooks.processAutoSkillIntent('chat', message, context);
+    },
+  };
+}
+
+export function initializeEventIntegration(injector, opencode) {
+  console.log('[EventHooks] Integration initialized');
 }

@@ -6,10 +6,10 @@
   "author": "techted89",
   "repository": "https://github.com/techted89/auto-skill.git",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./src/index.mjs",
   "exports": {
     ".": {
-      "import": "./src/index.js",
+      "import": "./src/index.mjs",
       "types": "./src/index.d.ts"
     }
   },

@@ -87,7 +87,7 @@ export class AgentMapper {
     ],
     'backend-architect': [
       'backend', 'microservices', 'service', 'architecture', 'design', 'patterns',
-      'database', 'schema', 'modeling', '_entity_', 'repository', 'session',
+      'database', 'schema', 'modeling', 'repository', 'session',
       'queue', 'worker', 'pipeline', 'orchestration', 'event-driven', 'cicd',
       'ci-cd', 'cd', 'deployment', 'kubernetes', 'docker', 'containers',
       'infrastructure', 'as-code', 'terraform', 'cloud', 'serverless', 'async',

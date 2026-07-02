@@ -10,9 +10,9 @@ import { join } from 'path';
 import { ChromaClient } from 'chromadb';
 import { getEmbedding } from './embeddings.js';
 
-class ContextInjector {
+export class ContextInjector {
   constructor(config = {}) {
-    this.dataDir = config.dataDir || '/var/lib/auto-skill/context';
+    this.dataDir = config.dataDir || '~/.config/opencode/.opencode-auto-skill';
     this.profilePath = join(this.dataDir, 'context-profile.json');
     this.maxTokens = config.maxTokens || 128;
     this.tokenBudgetStrategy = config.tokenBudgetStrategy || 'greedy';
@@ -124,7 +124,7 @@ class ContextInjector {
       
       // Remove terms below minimum threshold
       if (newProfile.termWeights[term] < this._getMinWeight(tier)) {
-        delete NEW_PROFILE.termWeights[term];
+        delete newProfile.termWeights[term];
       }
     }
     
@@ -174,7 +174,7 @@ class ContextInjector {
    */
   async getProfile() {
     const profile = await this._loadProfile();
-    const weightedTerms = {};
+    const result = { termWeights: {} };
     
     for (const term of Object.keys(profile.termWeights || {})) {
       const tier = this._getTermTier(term);
@@ -183,11 +183,11 @@ class ContextInjector {
       
       const weight = profile.termWeights[term] * decayRate;
       if (weight >= minWeight) {
-        newProfile.termWeights[term] = weight;
+        result.termWeights[term] = weight;
       }
     }
     
-    return newProfile;
+    return result;
   }
 
   /**
@@ -202,15 +202,16 @@ class ContextInjector {
    */
   async getProactiveSuggestions(context) {
     const profile = await this._loadProfile();
-    const termToSkills = await this._searchByTerms(Object.keys(profile.termWeights || {}));
     
-    // Apply token budget if specified
-    const budget = this._applyTokenBudget(limit, maxTokens);
-    
-    // Get top relevant skills
-    const suggestions = await this._getProactiveSuggestions(termToSkills, budget);
-    
-    return suggestions.slice(0, limit);
+    return Object.entries(profile.termWeights || {})
+      .map(([term, weight]) => ({ term, weight }))
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 10)
+      .map(({ term, weight }) => ({
+        skill: term,
+        confidence: Math.min(1, weight),
+        source: 'context-profile',
+      }));
   }
 
   /**
@@ -253,33 +254,6 @@ class ContextInjector {
       console.log('[Context Injector] Profile reset');
     } catch (error) {
       console.warn('[Context Injector] Reset failed:', error.message);
-    }
-  }
-
-  // --- Private Methods ---
-  
-  _getTermTier(term) {
-    if (this.HIGH_IMPACT_TERMS.has(term)) return 'HIGH';
-    if (this.MID_IMPACT_TERMS.has(term)) return 'MID';
-    if (this.LOW_IMPACT_TERMS.has(term)) return 'LOW';
-    return 'GENERAL';
-  }
-
-  _getDecayRate(tier) {
-    switch (tier) {
-      case 'HIGH': return 0.97;
-      case 'MID': return 0.90;
-      case 'LOW': return 0.85;
-      default: return 0.88;
-    }
-  }
-
-  _getMinWeight(tier) {
-    switch (tier) {
-      case 'HIGH': return 0.2;
-      case 'MID': return 0.15;
-      case 'LOW': return 0.1;
-      default: return 0.1;
     }
   }
 

@@ -6,11 +6,7 @@
  */
 
 import { ProactiveInjector } from './proactive-injector.js';
-import { 
-  createToolEventHandlers, 
-  createChatEventHandlers,
-  initializeEventIntegration 
-} from './event-hooks.js';
+import { initializeEventIntegration } from './event-hooks.js';
 
 /**
  * Plugin metadata
@@ -43,7 +39,6 @@ const DEFAULT_CONFIG = {
  * Plugin instance container
  */
 let injector = null;
-let opencodeRef = null;
 
 /**
  * Activate the plugin
@@ -63,9 +58,8 @@ export function activate(config = {}, opencode = null) {
   // Create injector
   injector = new ProactiveInjector(mergedConfig);
   
-  // Store opencode reference for event integration
+  // Initialize event integration
   if (opencode) {
-    opencodeRef = opencode;
     initializeEventIntegration(injector, opencode);
   }
   
@@ -90,7 +84,6 @@ export function deactivate() {
 
   injector.deactivate();
   injector = null;
-  opencodeRef = null;
   console.log(`[${PLUGIN_INFO.name}] Deactivated`);
 }
 

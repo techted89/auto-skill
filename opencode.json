@@ -3,11 +3,16 @@
   "references": {
     "auto-skill": {
       "path": ".",
-      "description": "Auto-generate skills from interactions, documentation, and codebases"
+      "description": "Auto-generate, manage, and discover skills from interactions, documentation, and codebases"
     }
   },
   "mcp": {},
   "plugin": [
-    "@techted89/auto-skill"
+    {
+      "id": "auto-skill",
+      "source": "local",
+      "path": "./src/index.mjs",
+      "description": "Skillset index, context injection, learning engine, and skill management tools"
+    }
   ]
 }

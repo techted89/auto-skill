@@ -6,9 +6,12 @@
  */
 import { readJSON, writeJSON, ensureDir } from './lifecycle.js';
 import { SKILL_REPOS, SKILL_SEARCH_QUERIES } from './config.js';
-import { GitHubSourcing } from './sourcing/github.js';
-import { WebSourcing } from './sourcing/web.js';
+import { fetchRepoContent, cleanupRepo } from './sourcing/github.js';
+import { searchAndScrape } from './sourcing/web.js';
 import { SkillsetIndex } from './skillset-index.js';
+import { parseSkill, generateSkill } from './skill-engine.js';
+import { join } from 'path';
+import { readFile, readdir } from 'fs/promises';
 
 export class AutoDiscovery {
   constructor(dataDir, skillsDir, config = {}) {
@@ -42,9 +45,6 @@ export class AutoDiscovery {
       queriesProcessed: 0,
     };
     
-    // Initialize components
-    this.githubSourcing = new GitHubSourcing(this.config.githubToken);
-    this.webSourcing = new WebSourcing();
     this.skillsetIndex = new SkillsetIndex(dataDir);
   }
 
@@ -71,14 +71,6 @@ export class AutoDiscovery {
     }
     
     return state;
-  }
-
-  /**
-   * Save discover state
-   */
-  async saveState(state) {
-    await ensureDir(this.dataDir);
-    await writeJSON(this.discoveryStatePath, state);
   }
 
   /**
@@ -410,6 +402,33 @@ export class AutoDiscovery {
   }
 
   /**
+   * List all skills in the skills directory
+   */
+  async getSkillList() {
+    try {
+      const files = await readdir(this.skillsDir);
+      const skillFiles = files.filter(f => f.endsWith('.skill.md') || f.endsWith('.md'));
+      const skills = [];
+
+      for (const file of skillFiles) {
+        try {
+          const fullPath = join(this.skillsDir, file);
+          const parsed = await parseSkill(fullPath);
+          if (parsed) {
+            skills.push({ ...parsed, source: 'discovered', file });
+          }
+        } catch {
+          // skip unparseable files
+        }
+      }
+
+      return skills;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Get all discovered skills
    */
   async getDiscoveredSkills() {
@@ -420,6 +439,20 @@ export class AutoDiscovery {
       source: s.source || 'discovered',
       parameters: s.parameters || {}
     }));
+  }
+
+  /**
+   * Process auto-skill intent from chat or command
+   */
+  async processAutoSkillIntent(intentType, query, context) {
+    if (intentType === 'discover') {
+      const pages = await searchAndScrape(query);
+      return { success: true, pages, intentType, query };
+    }
+    if (intentType === 'chat') {
+      return { success: true, intentType, query, context };
+    }
+    return { success: false, error: `Unknown intent type: ${intentType}` };
   }
 
   /**
@@ -455,7 +488,6 @@ export class AutoDiscovery {
 }
 
 /* Additional utilities */
-// Add slugify function to match context-window-manager
 function slugify(name) {
   return name
     .toLowerCase()
@@ -463,21 +495,5 @@ function slugify(name) {
     .replace(/^-|-$/g, '')
     .slice(0, 64);
 }
-
-// Mock implementations for required functions (would be imported in actual context)
-async function readFile(path, encoding = 'utf-8') {}
-async function readdir(dir) {}
-async function join(...parts) {}
-const tmpdir = () => '__temp__';
-
-// In a real implementation, these would be imported from other modules
-function fetchRepoContent(repoUrl) {}
-function parseSkill(filePath) {}
-function generateSkill(skillsDir, name, description, body) {}
-function searchAndScrape(query) {}
-function extractMainContent(html) {}
-function extractTitle(html) {}
-function extractRealUrl(raw) {}
-function isSkillKnown(skillName) {}
 
 export default AutoDiscovery;

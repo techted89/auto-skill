@@ -1,5 +1,3 @@
-import { encoding_for_model } from '@dqbd/tiktoken';
-
 class ContextWindowManager {
   constructor(config = {}) {
     this.maxTokens = config.maxTokens ?? 16000;
@@ -8,24 +6,14 @@ class ContextWindowManager {
     this.budget = config.budget ?? {history:0.2, skills:0.6, buffer:0.2};
     this.usageStats = {};
     this.saveUsageStats = config.persistence?.saveUsageStats;
-    
-    // Initialize token estimator
-    this._tokenizer = null;
   }
 
-  async getTokenizer(model = 'gpt-4') {
-    if (!this._tokenizer) {
-      this._tokenizer = await encoding_for_model(model);
-    }
-    return this._tokenizer;
+  estimateTokens(text) {
+    // Approximate token count (~4 chars per token for English text)
+    return Math.ceil((text || '').length / 4);
   }
 
-  async estimateTokens(text) {
-    const tokenizer = await this.getTokenizer();
-    return tokenizer.encode(text).length;
-  }
-
-  async currentUsage() {
+  currentUsage() {
     let totalTokens = 0;
     for (const skill of this.skills.values()) {
       totalTokens += skill.tokens;
@@ -33,32 +21,32 @@ class ContextWindowManager {
     return totalTokens;
   }
 
-  async addSkill(skill) {
-    const skillWithTokens = await this.enhanceSkillWithTokens(skill);
+  addSkill(skill) {
+    const skillWithTokens = this.enhanceSkillWithTokens(skill);
     this.skills.set(skillWithTokens.slug, skillWithTokens);
-    await this.persistUsage(skill.slug, 'added');
+    this.persistUsage(skill.slug, 'added');
     return skillWithTokens;
   }
 
-  async enhanceSkillWithTokens(skill) {
+  enhanceSkillWithTokens(skill) {
     const existing = this.skills.get(skill.slug);
     if (existing) {
-      return existing; // Keep existing tokens
+      return existing;
     }
     
     const content = skill.description + '\n\n' + (skill.body || '');
-    const tokens = await this.estimateTokens(content);
+    const tokens = this.estimateTokens(content);
     
     return {
       ...skill,
       slug: skill.slug || this.generateSlug(skill),
       tokens,
       timestamp: Date.now(),
-      relevance: await this.calculateRelevance(skill)
+      relevance: this.calculateRelevance(skill)
     };
   }
 
-  async calculateRelevance(skill) {
+  calculateRelevance(skill) {
     let score = 0.5; // Base relevance
     
     if (this.usageStats && this.usageStats[skill.name]) {
@@ -77,24 +65,23 @@ class ContextWindowManager {
     return skill.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   }
 
-  async pruneSkills(skills, budget) {
+  pruneSkills(skills, budget) {
     const scoredSkills = [];
     for (const skill of skills) {
-      const relevance = await this.relevanceScore(skill);
+      const relevance = this.relevanceScore(skill);
       scoredSkills.push({skill, relevance});
     }
     
-    // Sort by relevance (descending) and take top N
     scoredSkills.sort((a, b) => b.relevance - a.relevance);
     const keepCount = Math.min(Math.ceil(skills.length * budget), scoredSkills.length);
     return scoredSkills.slice(0, keepCount).map(item => item.skill);
   }
 
-  async relevanceScore(skill) {
-    return skill.relevance || await this.calculateRelevance(skill);
+  relevanceScore(skill) {
+    return skill.relevance || this.calculateRelevance(skill);
   }
 
-  async optimizeContext(skills, budget) {
+  optimizeContext(skills, budget) {
     return this.pruneSkills(skills, budget);
   }
 
@@ -129,7 +116,7 @@ class ContextWindowManager {
   getWindowStats() {
     return {
       totalSkills: this.skills.size,
-      tokensInUse: async () => this.currentUsage(),
+      tokensInUse: () => this.currentUsage(),
       maxTokens: this.maxTokens,
       totalUsageStats: Object.keys(this.usageStats).length,
     };
@@ -150,13 +137,12 @@ class ContextWindowManager {
     }
   }
 
-  async compressHistory(history, targetTokens) {
-    const tokenEstimator = await this.getTokenizer();
+  compressHistory(history, targetTokens) {
     let totalTokens = 0;
     const compressed = [];
     
-    for (const item of history.reverse()) {
-      const tokens = await this.estimateTokens(JSON.stringify(item));
+    for (const item of [...history].reverse()) {
+      const tokens = this.estimateTokens(JSON.stringify(item));
       if (totalTokens + tokens <= targetTokens) {
         compressed.push(item);
         totalTokens += tokens;
