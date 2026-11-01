@@ -28,7 +28,7 @@
   "dependencies": {
     "@opencode-ai/plugin": "1.17.11",
     "chromadb": "^3.5.0",
-    "zod": "4.1.8"
+    "zod": "4.6.6"
   },
   "peerDependencies": {
     "@opencode-ai/sdk": ">=1.17.0"
